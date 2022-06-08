@@ -14,11 +14,17 @@ import (
 
 // Config responsible to configure middleware
 type Config struct {
-	Namespace           string
-	Subsystem           string
-	Buckets             []float64
-	NormalizeHTTPStatus bool
-	Skipper             middleware.Skipper
+	HandlerLabelMappingFunc func(c echo.Context) string
+	Skipper                 middleware.Skipper
+	Namespace               string
+	Subsystem               string
+	Buckets                 []float64
+	NormalizeHTTPStatus     bool
+}
+
+// DefaultHandlerLabelMappingFunc returns the handler path
+func DefaultHandlerLabelMappingFunc(c echo.Context) string {
+	return c.Path()
 }
 
 // DefaultSkipper doesn't skip anything
@@ -55,8 +61,9 @@ var DefaultConfig = Config{
 		20.0,
 		30.0,
 	},
-	NormalizeHTTPStatus: true,
-	Skipper:             DefaultSkipper,
+	NormalizeHTTPStatus:     true,
+	Skipper:                 DefaultSkipper,
+	HandlerLabelMappingFunc: DefaultHandlerLabelMappingFunc,
 }
 
 // nolint: gomnd
@@ -107,7 +114,7 @@ func MetricsMiddlewareWithConfig(config Config) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
-			path := c.Path()
+			path := config.HandlerLabelMappingFunc(c)
 
 			// to avoid attack high cardinality of 404
 			if isNotFoundHandler(c.Handler()) {
