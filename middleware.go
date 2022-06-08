@@ -4,8 +4,10 @@ package echoprometheus
 import (
 	"reflect"
 	"strconv"
+	"time"
 
-	echo "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -16,6 +18,12 @@ type Config struct {
 	Subsystem           string
 	Buckets             []float64
 	NormalizeHTTPStatus bool
+	Skipper             middleware.Skipper
+}
+
+// DefaultSkipper doesn't skip anything
+func DefaultSkipper(c echo.Context) bool {
+	return false
 }
 
 const (
@@ -48,6 +56,7 @@ var DefaultConfig = Config{
 		30.0,
 	},
 	NormalizeHTTPStatus: true,
+	Skipper:             DefaultSkipper,
 }
 
 // nolint: gomnd
@@ -105,13 +114,19 @@ func MetricsMiddlewareWithConfig(config Config) echo.MiddlewareFunc {
 				path = notFoundPath
 			}
 
-			timer := prometheus.NewTimer(httpDuration.WithLabelValues(req.Method, path))
+			begin := time.Now()
 			err := next(c)
-			timer.ObserveDuration()
+			dur := time.Since(begin)
 
 			if err != nil {
 				c.Error(err)
 			}
+
+			if config.Skipper(c) {
+				return nil
+			}
+
+			httpDuration.WithLabelValues(req.Method, path).Observe(dur.Seconds())
 
 			status := ""
 			if config.NormalizeHTTPStatus {
