@@ -1,8 +1,9 @@
+// Package echoprometheus implements prometheus metrics middleware
 package echoprometheus
 
 import (
-	"strconv"
 	"reflect"
+	"strconv"
 
 	echo "github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
@@ -11,9 +12,9 @@ import (
 
 // Config responsible to configure middleware
 type Config struct {
-	Namespace string
-	Buckets   []float64
-	Subsystem string
+	Namespace           string
+	Subsystem           string
+	Buckets             []float64
 	NormalizeHTTPStatus bool
 }
 
@@ -49,6 +50,7 @@ var DefaultConfig = Config{
 	NormalizeHTTPStatus: true,
 }
 
+// nolint: gomnd
 func normalizeHTTPStatus(status int) string {
 	if status < 200 {
 		return "1xx"
@@ -78,7 +80,6 @@ func MetricsMiddleware() echo.MiddlewareFunc {
 
 // MetricsMiddlewareWithConfig returns an echo middleware for instrumentation.
 func MetricsMiddlewareWithConfig(config Config) echo.MiddlewareFunc {
-
 	httpRequests := promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: config.Namespace,
 		Subsystem: config.Subsystem,
